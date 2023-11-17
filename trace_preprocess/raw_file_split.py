@@ -23,4 +23,4 @@ mkdir(split_save)
 
 split = Split(src_file_path, split_save)
 
-split.bylinecount(linecount = 750000) # 每个文件最多 10000 行
+split.bylinecount(linecount = 750000) # 每个文件最多 750000 行

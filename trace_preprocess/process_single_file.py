@@ -35,7 +35,6 @@ def parse_swap_and_direction(linestr):
     left = dir_and_left[1]
     dir = dir[1:-1]
     left = left[1:-1]
-
     prio = dir[-1]
     if dir.startswith("RE<="):
         dir = "r"
@@ -149,7 +148,7 @@ def parse_line(linestr):
     ret_list.append(prog_pid)
     #now we got prog_pid
     linestr = linestr.split(prog_pid)[-1]
-    trace_func = re.search(trace_func_tpl + '\w?:' , linestr, 0)
+    trace_func = re.search(trace_func_tpl + '\S*\:' , linestr, 0)
     if (trace_func):
         trace_func = trace_func.group()
     else:
