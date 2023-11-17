@@ -1,3 +1,8 @@
 // .gitignore
 .vscode/
-.raw_traces/
+raw_traces/after_split/*
+raw_traces/before_process/*
+*.txt
+*.txt.*
+manifest
+**/__pycache__
