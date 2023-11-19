@@ -1,9 +1,9 @@
 from trace_record import TraceRecord, load_str_record
 import os
 
-base = "/home/jl/trace_data/"
-trace_base = base + "raw_traces/"
-split_base = trace_base + "after_split/"
+base = "D:\\yoko\\trace_data\\"
+trace_base = base + "raw_traces\\"
+split_base = trace_base + "after_split\\"
 
 def scan_parsed_files(parsed_path):
     if not parsed_path.startswith(split_base):
@@ -11,6 +11,7 @@ def scan_parsed_files(parsed_path):
 
     target = parsed_path
     filelist = os.listdir(target)
+    # print(fi)
     allfiles = []
     for filename in filelist:
         filepath = os.path.join(target,filename)

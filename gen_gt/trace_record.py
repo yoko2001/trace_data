@@ -170,7 +170,6 @@ class TraceRecord(object):
     #     return getattr(self, item)
 
 def load_str_record(line_str):
-    print(line_str)
     line_list = eval(line_str)
     assert(len(line_list) == 16 or len(line_list) == 20)
     if (len(line_list)) == 16:
@@ -245,13 +244,13 @@ if __name__ == '__main__':
     )
 
     print(
-        m["process"], 
+        m["process"], #pid
         m["se"], 
         m["timestamp"], 
-        m['dir'], 
-        m['swap_level'], 
-        m['left'], 
-        m['entry'],
+        m['dir'], # in or out
+        m['swap_level'], # fast or slow
+        m['left'], # space left in swap_level device
+        m['entry'], # page id
         m['va'], 
         m['folio'], 
         m['swapprio_b'],
