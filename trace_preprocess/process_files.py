@@ -1,10 +1,10 @@
 import os
 from process_single_file import parse_file_by_line
-base = "/home/jl/work/trace_data/"
+base = "/home/jl/trace_data/"
 trace_base = base + "raw_traces/"
 split_base = trace_base + "after_split/"
 
-target = "test3"
+target = "test1"
 target_dir = split_base + target + "/"
 
 def scanfile(path):

@@ -1,6 +1,6 @@
 from filesplit.split import Split
 import os
-base = "/home/jl/work/trace_data/"
+base = "/home/jl/trace_data/"
 trace_base = base + "raw_traces/"
 def mkdir(path):
     # os.path.exists 函数判断文件夹是否存在
@@ -15,7 +15,7 @@ def mkdir(path):
     else:
         print('文件夹已经存在：', path)
         
-src_file = "test3.txt"
+src_file = "test1.txt"
 src_file_path = trace_base + "before_process/" + src_file
 split_save = trace_base + "after_split/" + src_file.split(".txt")[0]
 

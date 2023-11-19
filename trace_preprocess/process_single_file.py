@@ -125,7 +125,24 @@ def parse_memcg(linestr):
         exit(0)
         
     memcg = linestr[1:-1].split("memcg:")[-1]
-    return memcg, linestrret 
+    return memcg, linestrret
+
+def parse_se(linestr):
+    linestrret = linestr
+    linestr = re.search("se\[ts\[\S*\]hist\S*\]\]", linestr, 0)
+    if linestr:
+        linestr = linestr.group()
+    else:
+        return None, linestr
+    linestr = linestr.split('se')[-1][1:-1]
+    linestr_spl = linestr.split('hist')
+    histstr = linestr_spl[1]
+    tsstr = linestr_spl[0]
+    ts = int(tsstr[3:-1])
+    histstr = histstr[1:-1]
+    histstr_spl = histstr.split("][")
+    [hist1, hist2, hist3] = histstr_spl
+    return [int(ts), int(hist1), int(hist2), int(hist3)], linestrret 
 
 def parse_single(totalstr, name):
     linestr = re.search(name + "\[\S*\]", totalstr, 0)
@@ -195,7 +212,9 @@ def parse_line(linestr):
     ret_list.append(minseq)
     ret_list.append(ref)
     ret_list.append(tier)
-
+    se , linestr= parse_se(tier_str)
+    if se:
+        ret_list.extend(se)
     print(ret_list)
     
     return ret_list
