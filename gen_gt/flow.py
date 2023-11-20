@@ -61,7 +61,7 @@ if __name__ == "__main__":
         record = loader.next_record()
         if record == None:
             print(num)
-            exit(0)
+            break
             
             
         entry = record['entry']
@@ -95,8 +95,7 @@ if __name__ == "__main__":
                 
         num += 1
         basic_id += 1
-        if num == 400000:
-            break
+
     # add slow edge
     start_nodes.append(basic_id - 1)
     end_nodes.append(basic_id)
@@ -112,6 +111,7 @@ if __name__ == "__main__":
         if capacities[i] != 1:
             capacities[i] = max_cache
     print("max_cache:"+str(max_cache))
+    print("node_num:"+str(len(set(start_nodes))))
     print(len(start_nodes))
     print(len(end_nodes))
     print(len(capacities))
