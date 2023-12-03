@@ -1,11 +1,14 @@
 import os
+import sys
 from process_single_file import parse_file_by_line
-base = "/home/jl/trace_data/"
-trace_base = base + "raw_traces/"
-split_base = trace_base + "after_split/"
+import multiprocessing
 
-target = "test1"
-target_dir = split_base + target + "/"
+filepwd = os.path.realpath(__file__)
+trace_preprocesspwd = os.path.dirname(filepwd)
+base = os.path.dirname(trace_preprocesspwd)
+trace_base = os.path.join(base , "raw_traces/")
+split_base = os.path.join(trace_base, "after_split/")
+
 
 def scanfile(path):
     filelist = os.listdir(path)
@@ -16,8 +19,29 @@ def scanfile(path):
             allfiles.append(filepath)
     return allfiles
 
-filelist = scanfile(target_dir)
-
-for file in filelist:
-    target = file + '.parsed'
-    parse_file_by_line(file, target)
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        if len(sys.argv) > 2:
+            raise NotImplementedError("can only have one argument")
+        src_file_name = sys.argv[-1]
+        if not src_file_name.endswith(".txt"):
+            src_name = src_file_name.split(".txt")[0]
+        else:
+            src_name = src_file_name
+    else:
+        src_name = "test1"
+    target = src_name
+    target_dir = os.path.join(split_base , target)
+    print(target_dir)
+    filelist = scanfile(target_dir)
+    
+    pool = multiprocessing.Pool(processes = min(len(filelist), 8)) # max 8 cores
+    
+    for file in filelist:
+        target = file + '.parsed'
+        print("{0} => {1}".format(file, target))
+        pool.apply_async(parse_file_by_line, (file, target, ))
+        #parse_file_by_line(file, target)
+    pool.close()
+    pool.join()
+    print("Sub-process(es) done.")
