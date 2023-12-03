@@ -2,20 +2,20 @@ import re
 import os
 import json
 
-program_names = ['pagewalker']
-target_program = "pagewalker"
-trace_func_tpl = "folio_ws_chg"
+program_names = [r'pagewalker', r'memcached']
+target_program = r"memcached"#"pagewalker"
+trace_func_tpl = r"folio_ws_chg"
 
 def get_prog_pid(linestr):
     for prog in program_names:
-        prog_pid_pattern = prog + '-' + '\d+'
+        prog_pid_pattern = (prog + r'-' + r'\d+')
         prog_pid = re.search(prog_pid_pattern, linestr, 0)
         if prog_pid:
             return prog_pid.group()
     return None
         
 def parse_time(timestr): #get parsed time
-    timestr = re.search("\d+\.\d+:", timestr, 0)
+    timestr = re.search(r"\d+\.\d+:", timestr, 0)
     if timestr:
         timestr = timestr.group()
         timestr = timestr.split(":")[0]
@@ -24,11 +24,12 @@ def parse_time(timestr): #get parsed time
 
 def parse_swap_and_direction(linestr):
     linestrret = linestr
-    linestr = re.search("\[\S*\]left\[\S*\]", linestr, 0)
+    linestr = re.search(r"\[\S*\]left\[\S*\]", linestr, 0)
     if linestr:
         linestr = linestr.group()
         linestrret = linestrret.split(linestr)[-1]
     else:
+        print("unable to get left")
         exit(0)
     dir_and_left = linestr.split('left')
     dir = dir_and_left[0]
@@ -47,11 +48,12 @@ def parse_swap_and_direction(linestr):
     return dir, prio, leftover, linestrret
 def parse_entry(linestr):
     linestrret = linestr
-    linestr = re.search("entry\[\S*\]", linestr, 0)
+    linestr = re.search(r"entry\[\S*\]", linestr, 0)
     if linestr:
         linestr = linestr.group()
         linestrret = linestrret.split(linestr)[-1]
     else:
+        print("fail get entry {}".format(linestr))
         exit(0)
         
     linestr = linestr.split("entry")[-1]
@@ -60,11 +62,12 @@ def parse_entry(linestr):
 
 def parse_va(linestr):
     linestrret = linestr
-    linestr = re.search("va\[\S*\]->", linestr, 0)
+    linestr = re.search(r"va\[\S*\]->", linestr, 0)
     if linestr:
         linestr = linestr.group()
         linestrret = linestrret.split(linestr)[-1]
     else:
+        print("fail get va {}".format(linestr))
         exit(0)
         
     linestr = linestr.split("va")[-1]
@@ -73,11 +76,12 @@ def parse_va(linestr):
 
 def parse_folio(linestr):
     linestrret = linestr
-    linestr = re.search("folio@\[\S*\]\{", linestr, 0)
+    linestr = re.search(r"folio@\[\S*\]\{", linestr, 0)
     if linestr:
         linestr = linestr.group()
         linestrret = linestrret.split(linestr[0:-1])[-1]
     else:
+        print("fail get folio {}".format(linestr))
         exit(0)
         
     linestr = linestr.split("folio@")[-1]
@@ -86,11 +90,12 @@ def parse_folio(linestr):
 
 def parse_folio(linestr):
     linestrret = linestr
-    linestr = re.search("folio@\[\S*\]\{", linestr, 0)
+    linestr = re.search(r"folio@\[\S*\]\{", linestr, 0)
     if linestr:
         linestr = linestr.group()
         linestrret = linestrret.split(linestr[0:-1])[-1]
     else:
+        print("fail get folio {}".format(linestr))
         exit(0)
         
     linestr = linestr.split("folio@")[-1]
@@ -99,12 +104,14 @@ def parse_folio(linestr):
 
 def parse_folio_bits(linestr):
     linestrret = linestr
-    linestr = re.search("\{\[\S*\]ra\[\S*\]gen\[\S*\]\}", linestr, 0)
+    linestr = re.search(r"\{\[\S*\]ra\[\S*\]gen\[\S*\]\}", linestr, 0)
     if linestr:
         linestr = linestr.group()
         linestrret = linestrret.split(linestr)[-1]
     else:
         exit(0)
+        print("fail get folio bits {}".format(linestr))
+
     linestr = linestr[1:-1]
     linestr_sp =  linestr.split('ra')
     otherstr = linestr_sp[0]
@@ -117,11 +124,12 @@ def parse_folio_bits(linestr):
 
 def parse_memcg(linestr):
     linestrret = linestr
-    linestr = re.search("\{memcg:\S*\}", linestr, 0)
+    linestr = re.search(r"\{memcg:\S*\}", linestr, 0)
     if linestr:
         linestr = linestr.group()
         linestrret = linestrret.split(linestr)[-1]
     else:
+        print("fail get memcg {}".format(linestr))
         exit(0)
         
     memcg = linestr[1:-1].split("memcg:")[-1]
@@ -129,23 +137,24 @@ def parse_memcg(linestr):
 
 def parse_se(linestr):
     linestrret = linestr
-    linestr = re.search("se\[ts\[\S*\]hist\S*\]\]", linestr, 0)
+    linestr = re.search(r"se\{\S+\}\[memcg\[\S*\]hist\S*\]\]", linestr, 0) 
+    #se{00000000998ce790}[memcg[56]hist[155][145][135]]
     if linestr:
         linestr = linestr.group()
     else:
         return None, linestr
-    linestr = linestr.split('se')[-1][1:-1]
+    linestr = linestr.split('memcg')[-1][1:-1]
     linestr_spl = linestr.split('hist')
     histstr = linestr_spl[1]
-    tsstr = linestr_spl[0]
-    ts = int(tsstr[3:-1])
+    memcgstr = linestr_spl[0]
+    memcg = int(memcgstr[1:-1])
     histstr = histstr[1:-1]
     histstr_spl = histstr.split("][")
     [hist1, hist2, hist3] = histstr_spl
-    return [int(ts), int(hist1), int(hist2), int(hist3)], linestrret 
+    return [int(memcg), int(hist1), int(hist2), int(hist3)], linestrret 
 
 def parse_single(totalstr, name):
-    linestr = re.search(name + "\[\S*\]", totalstr, 0)
+    linestr = re.search(name + r"\[\S*\]", totalstr, 0)
     if linestr:
         linestr = linestr.group()
     else:
@@ -165,11 +174,12 @@ def parse_line(linestr):
     ret_list.append(prog_pid)
     #now we got prog_pid
     linestr = linestr.split(prog_pid)[-1]
-    trace_func = re.search(trace_func_tpl + '\S*\:' , linestr, 0)
+    trace_func = re.search(trace_func_tpl + r'\S*\:' , linestr, 0)
     if (trace_func):
         trace_func = trace_func.group()
     else:
         return None
+
     linestr_sp = linestr.split(trace_func)
     trace_func = trace_func[:-1]
     ret_list.append(trace_func)
@@ -215,16 +225,20 @@ def parse_line(linestr):
     se , linestr= parse_se(tier_str)
     if se:
         ret_list.extend(se)
-    print(ret_list)
+    # print(ret_list)
     
     return ret_list
 
 def parse_file_by_line(filepath, savepath):
+    print("Run task %s" % (os.getpid()))
+    if os.path.exists(savepath):
+        os.remove(savepath)
     fp = open(filepath,"r")
     sp = open(savepath, "a")
     while True:
         line = fp.readline()
         if not line:      #等价于if line == "":
+            print("finised Run task %s" % (os.getpid()))
             break
         res = parse_line(line)
         if res:
