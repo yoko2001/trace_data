@@ -18,7 +18,8 @@ trace_preprocesspwd = os.path.dirname(filepwd)
 base = os.path.dirname(trace_preprocesspwd)
 trace_base = os.path.join(base , "raw_traces/")
 split_base = os.path.join(trace_base, "after_split/")
-    
+label_file = None
+result_file = None
 
 class global_mapping(object):
     def __init__(self, input_flow):
@@ -30,6 +31,8 @@ class global_mapping(object):
         self.current_v_index = 0
         self.total_v_num = 0
         self.raw_records = []
+        self.label = []
+        self.result_num = []
         self.index2record = {}
         self.node_stacks = {}
         self.input_flow = input_flow
@@ -61,6 +64,9 @@ class global_mapping(object):
             print(len(self.edges), self.current_v_index, self.no_end_num, self.no_start_num, self.complete_num)
             raise RuntimeError("invalid graph")
         
+        if not ((len(self.result_num) ==self.current_v_index) and (len(self.result_num) == len(self.label))):
+            raise RuntimeError("invalid 2 {0}!={1}!={2}".format(len(self.result_num), self.current_v_index, len(self.label)))
+
     def reset_tar_vertex(self):
         #set vertex_cost
         self.vertex_cost[self.src_index] = self.input_flow
@@ -80,7 +86,7 @@ class global_mapping(object):
         self.vertex_cost[str(self.src_index)] = 0
         self.index2record[new_index] = len(self.raw_records)
         self.raw_records.append(None)
-        
+
         #add the 2nd virtual v
         #init fake_src_index 用于供给所有无起始点的直流流量的虚拟点
         new_index = self.get_next_index()
@@ -106,6 +112,8 @@ class global_mapping(object):
         self.raw_records.append(None)
         
         self.last_v = self.src_index
+        self.label.extend([0]*4)
+        self.result_num.extend([0]*4)
         
     def get_next_index(self):
         # alloc a new index for node
@@ -116,8 +124,10 @@ class global_mapping(object):
         main_line_last_v = self.last_v
         new_index = self.get_next_index()
         self.last_v = new_index
-        self.index2record[new_index] = len(self.raw_records)
+        self.index2record[new_index] = len(self.raw_records) #ind -> record_nid
         self.raw_records.append(record)
+        self.label.append(0)
+        self.result_num.append(0)
         if out == 1: # 汇入主干
             #connect to main stream first
             self.edges.append((main_line_last_v, new_index, self.current_flow_max, 0))
@@ -150,6 +160,51 @@ class global_mapping(object):
     def edge_is_to_fake_tar(self, ind):
         return ind in self.to_fake_tar_edges_ind
     
+    def load_result(self, result):
+        for (v_id, label) in result:
+            self.label[v_id] += label
+            self.result_num[v_id] += 1
+
+    def finish_load_result(self):
+        for i, (lable_sum, lable_num) in enumerate(zip(self.label, self.result_num)):
+            if lable_num > 0:
+                self.label[i] = lable_sum / lable_num
+            else:
+                self.label[i] = -1
+            if not self.label[i] < 0.3:
+                r_id = self.index2record[i]
+                self.raw_records[r_id]['label'] = self.label[i]
+        self.record_dump()
+        
+    def record_dump(self):
+        record_label_index = 0
+        _results = []
+
+        for record_with_label in self.raw_records:
+            if record_with_label == None:
+                continue
+            if not record['dir'] == 'e':
+                continue
+            
+            #this is a evict point
+            hist = record_with_label['se_hist']
+            if hist==None:
+                continue
+            assert(len(hist) == 3)
+            label = record_with_label['label']
+            minseq = record_with_label['minseq']
+            memcg_id = record_with_label['memcg_id']
+            map(lambda x: minseq-x, hist)
+            single_result = [record_label_index, label, memcg_id, hist] # [id ,lable, dist1, dist2, dist3]
+            #我们无法使用left，这是由于left在实际运行时无法使用
+            #但是我们通过不同的input_flow控制已经获得了资源量不同的时候的情况
+            print(single_result)
+            _results.append(single_result)
+            record_label_index += 1
+
+        with open(label_file, 'wb') as f:
+            pickle.dump(_results, f)
+            
 class state(object):
     def __init__(self, mapping, seed=1234, max_edge=300000, maxcache=500):
         random.seed(seed)
@@ -262,7 +317,7 @@ class state(object):
         #we can give 0-20% loss on that
         self.vertex_cost[str(self.fake_tar_index)] = -self.no_end_num
         self.vertex_cost[str(self.tar_index)] = -(total_input - self.no_end_num)
-        # print(self.vertex_cost)
+        print("costs:", self.vertex_cost, "; max:", self.maxcache, "; v_num: ", len(self.reverse_ind_mapping.keys()), "; br_num: ", self.branched_edge_num)
 
 global_results = []
 global_graph = None
@@ -320,9 +375,9 @@ def run_a_sample(max_edge, maxcache, lock, seed):
     result = []
     for arc, flow, cost in zip(all_arcs, solution_flows, costs):
         new_from = smcf.tail(arc)
-        if (arc < 4): #actual nodes
-            continue
         new_to = smcf.head(arc)
+        if (new_from < 4) or (new_to < 4): #virtual nodes
+            continue
         ori_from = sub_graph.ind_mapping[new_from]
         if flow == 1:
             result.append((ori_from, 1))
@@ -332,6 +387,7 @@ def run_a_sample(max_edge, maxcache, lock, seed):
 
 if __name__ == "__main__":
     max_cache_choises = [1000, 2000, 4000]
+    small = False # True
     if len(sys.argv) > 1:
         if not len(sys.argv) == 3:
             raise NotImplementedError("can only have one argument")
@@ -344,11 +400,16 @@ if __name__ == "__main__":
     else:
         src_name = "test1"
         max_cache = 2000
+    
+    if small:
+        max_cache = 500
+        
     target_base = os.path.join(split_base, src_name)
     
-    timenow = datetime.datetime.now().strftime('%H:%M:%S')
+    timenow = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
     result_file = os.path.join(split_base, src_name +'_' + timenow + '_' + str(max_cache) +'_result.pkl')
+    label_file = os.path.join(split_base, src_name +'_' + timenow + '_' + str(max_cache) +'_label.pkl')
     print(target_base)
 
     loader = Record_Provider(target_base)
@@ -358,6 +419,8 @@ if __name__ == "__main__":
     while(True):
         record = loader.next_record()
         count += 1
+        if small and count >= 100000:
+            break
         if record == None:
             mapping.close_accept_normal_vertexes()
             break
@@ -374,13 +437,30 @@ if __name__ == "__main__":
     # run_a_sample(mapping, 12, 50000, 200, None)
     lock = multiprocessing.Manager().Lock()
     
-    runs_seeds = np.arange(50).tolist()
-    process_pool = multiprocessing.Pool(processes=30)
-    # 定义偏函数，并传入固定参数
-    pfunc = partial(run_a_sample, 300000, 200, lock)
+    runs_seeds = None
+    process_pool = None
+    pfunc = None
+    if small:
+        runs_seeds = np.arange(5).tolist()
+        process_pool = multiprocessing.Pool(processes=5)
+        # 定义偏函数，并传入固定参数
+        pfunc = partial(run_a_sample, 2000, 50, lock)
+
+    else:
+        runs_seeds = np.arange(50).tolist()
+        process_pool = multiprocessing.Pool(processes=30)
+        # 定义偏函数，并传入固定参数
+        pfunc = partial(run_a_sample, 200000, 250, lock)
+
 
     # 执行map，传入seeds
     results = process_pool.map(pfunc, runs_seeds)
+    
     assert(len(results) == len(runs_seeds))
+    
+    for result in results:
+        mapping.load_result(result)
+    mapping.finish_load_result()
+
     with open(result_file, 'wb') as f:
         pickle.dump(results, f)

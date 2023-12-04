@@ -15,7 +15,8 @@ class TraceRecord(object):
         'entry', 'va', 'folio',
         'swapprio_b', 'readahead_b', 'gen',
         'memcg_id', 'minseq', 'ref', 
-        'tier', 'se_hist', 'se_memcg'
+        'tier', 'se_hist', 'se_memcg',
+        'label', 'fake_left'
     ]
 
     def __init__(
@@ -24,7 +25,7 @@ class TraceRecord(object):
         swap_level, left, entry, va, 
         folio, swapprio_b, readahead_b, gen,
         memcg_id, minseq, ref, tier, se_hist, 
-        se_memcg
+        se_memcg, label = 0.0, fake_left=0.0
     ):
         self.process = process
         self.se = se
@@ -44,6 +45,8 @@ class TraceRecord(object):
         self.tier = tier
         self.se_hist = se_hist
         self.se_memcg = se_memcg
+        self.label = label
+        self.fake_left = fake_left
 
     def __setitem__(self, key, value):
         if key == 'title':
@@ -51,7 +54,17 @@ class TraceRecord(object):
                 super().__setattr__(key, value)
             else:
                 raise TypeError('1title 只能设置为字符串，不能设置为其他类型', value)
-    
+        elif key =='label':
+            if isinstance(value, float):
+                super().__setattr__(key, value)
+            else:
+                raise TypeError('lable 只能设置为float，不能设置为其他类型', value)
+        elif key =='fake_left':
+            if isinstance(value, float):
+                super().__setattr__(key, value)
+            else:
+                raise TypeError('fake_left 只能设置为float，不能设置为其他类型', value)
+
     def __setattr__(self, key, value):
         if key == 'process':
             if isinstance(value, str):
@@ -240,8 +253,10 @@ if __name__ == '__main__':
         ref = 1,
         tier = 2,
         se_hist = [234, 345, 567],
-        se_memcg = 123
+        se_memcg = 123,
     )
+    m['label'] = 0.1243
+    m['fake_left'] = 0.5
 
     print(
         m["process"], #pid
@@ -250,6 +265,7 @@ if __name__ == '__main__':
         m['dir'], # in or out
         m['swap_level'], # fast or slow
         m['left'], # space left in swap_level device
+        m['fake_left'], #0-100% float
         m['entry'], # page id
         m['va'], 
         m['folio'], 
@@ -261,5 +277,7 @@ if __name__ == '__main__':
         m['ref'],
         m['tier'],
         m['se_hist'],
-        m['se_memcg']
+        m['se_memcg'],
+        m['label'],
+        m['fake_left']
     )
