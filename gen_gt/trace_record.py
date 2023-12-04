@@ -15,7 +15,7 @@ class TraceRecord(object):
         'entry', 'va', 'folio',
         'swapprio_b', 'readahead_b', 'gen',
         'memcg_id', 'minseq', 'ref', 
-        'tier', 'se_hist', 'se_ts'
+        'tier', 'se_hist', 'se_memcg'
     ]
 
     def __init__(
@@ -24,7 +24,7 @@ class TraceRecord(object):
         swap_level, left, entry, va, 
         folio, swapprio_b, readahead_b, gen,
         memcg_id, minseq, ref, tier, se_hist, 
-        se_ts
+        se_memcg
     ):
         self.process = process
         self.se = se
@@ -43,7 +43,7 @@ class TraceRecord(object):
         self.ref = ref
         self.tier = tier
         self.se_hist = se_hist
-        self.se_ts = se_ts
+        self.se_memcg = se_memcg
 
     def __setitem__(self, key, value):
         if key == 'title':
@@ -137,7 +137,7 @@ class TraceRecord(object):
                 else:
                     print(type(value))
                     raise TypeError('se_hist 只能设置为list(len=3)类型，不能设置为其他类型')
-        elif key == 'se_ts':
+        elif key == 'se_memcg':
             if value == None:
                 pass
             else:
@@ -193,7 +193,7 @@ def load_str_record(line_str):
             ref = int(line_list[14]),
             tier = int(line_list[15]),
             se_hist = None,
-            se_ts = None
+            se_memcg = None
         )
     elif len(line_list) == 20:
         se = (line_list[1] == "folio_ws_chg_se")
@@ -214,7 +214,7 @@ def load_str_record(line_str):
             minseq = int(line_list[13]),
             ref = int(line_list[14]),
             tier = int(line_list[15]),
-            se_ts = int(line_list[16]),
+            se_memcg = int(line_list[16]),
             se_hist = [int(line_list[17]),int(line_list[18]),int(line_list[19])]
         )
     else:
@@ -240,7 +240,7 @@ if __name__ == '__main__':
         ref = 1,
         tier = 2,
         se_hist = [234, 345, 567],
-        se_ts = 123
+        se_memcg = 123
     )
 
     print(
@@ -261,5 +261,5 @@ if __name__ == '__main__':
         m['ref'],
         m['tier'],
         m['se_hist'],
-        m['se_ts']
+        m['se_memcg']
     )

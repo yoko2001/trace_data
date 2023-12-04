@@ -1,9 +1,12 @@
 from trace_record import TraceRecord, load_str_record
 import os
+import sys
 
-base = "D:\\yoko\\trace_data\\"
-trace_base = base + "raw_traces\\"
-split_base = trace_base + "after_split\\"
+filepwd = os.path.realpath(__file__)
+trace_preprocesspwd = os.path.dirname(filepwd)
+base = os.path.dirname(trace_preprocesspwd)
+trace_base = os.path.join(base , "raw_traces/")
+split_base = os.path.join(trace_base, "after_split/")
 
 def scan_parsed_files(parsed_path):
     if not parsed_path.startswith(split_base):
@@ -21,15 +24,17 @@ def scan_parsed_files(parsed_path):
 
 def load_single_file(filename):
     print("loading: ", filename)
+    count = 0
     with open(filename,"r") as fin:
         while True:
             line = fin.readline()
             if (line == None):
                 break
+            if (len(line) < 20):
+                print(line)
+                break
             record = load_str_record(line)
-            print(record)
-            
-    
+            count+=1
 
 class Record_Provider(object):
     def __init__(
@@ -69,8 +74,21 @@ class Record_Provider(object):
 
 if __name__ == '__main__':
     target = "/home/jl/trace_data/raw_traces/after_split/test1"
-    files = scan_parsed_files(target)
-    print(sorted(files))
+    if len(sys.argv) > 1:
+        if len(sys.argv) > 2:
+            raise NotImplementedError("can only have one argument")
+        src_file_name = sys.argv[-1]
+        if not src_file_name.endswith(".txt"):
+            src_name = src_file_name.split(".txt")[0]
+        else:
+            src_name = src_file_name
+    else:
+        src_name = "test1"
+    target_base = os.path.join(split_base, src_name)
+
+    files = scan_parsed_files(target_base)
+    files = sorted(files)
+    print(files)
     for file in files:
         load_single_file(file)
     
