@@ -5,4 +5,5 @@ raw_traces/before_process/*
 *.txt
 *.txt*
 manifest
+*.pkl
 **/__pycache__
