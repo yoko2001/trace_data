@@ -3,6 +3,7 @@
 raw_traces/after_split/*
 raw_traces/before_process/*
 *.txt
-*.txt.*
+*.txt*
 manifest
+*.pkl
 **/__pycache__

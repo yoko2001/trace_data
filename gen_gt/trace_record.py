@@ -15,7 +15,8 @@ class TraceRecord(object):
         'entry', 'va', 'folio',
         'swapprio_b', 'readahead_b', 'gen',
         'memcg_id', 'minseq', 'ref', 
-        'tier', 'se_hist', 'se_ts'
+        'tier', 'se_hist', 'se_memcg',
+        'label', 'fake_left'
     ]
 
     def __init__(
@@ -24,7 +25,7 @@ class TraceRecord(object):
         swap_level, left, entry, va, 
         folio, swapprio_b, readahead_b, gen,
         memcg_id, minseq, ref, tier, se_hist, 
-        se_ts
+        se_memcg, label = -1.0, fake_left=0.0
     ):
         self.process = process
         self.se = se
@@ -43,7 +44,9 @@ class TraceRecord(object):
         self.ref = ref
         self.tier = tier
         self.se_hist = se_hist
-        self.se_ts = se_ts
+        self.se_memcg = se_memcg
+        self.label = label
+        self.fake_left = fake_left
 
     def __setitem__(self, key, value):
         if key == 'title':
@@ -51,7 +54,17 @@ class TraceRecord(object):
                 super().__setattr__(key, value)
             else:
                 raise TypeError('1title 只能设置为字符串，不能设置为其他类型', value)
-    
+        elif key =='label':
+            if isinstance(value, float):
+                super().__setattr__(key, value)
+            else:
+                raise TypeError('lable 只能设置为float，不能设置为其他类型', value)
+        elif key =='fake_left':
+            if isinstance(value, float):
+                super().__setattr__(key, value)
+            else:
+                raise TypeError('fake_left 只能设置为float，不能设置为其他类型', value)
+
     def __setattr__(self, key, value):
         if key == 'process':
             if isinstance(value, str):
@@ -137,7 +150,7 @@ class TraceRecord(object):
                 else:
                     print(type(value))
                     raise TypeError('se_hist 只能设置为list(len=3)类型，不能设置为其他类型')
-        elif key == 'se_ts':
+        elif key == 'se_memcg':
             if value == None:
                 pass
             else:
@@ -170,17 +183,20 @@ class TraceRecord(object):
     #     return getattr(self, item)
 
 def load_str_record(line_str):
-    print(line_str)
     line_list = eval(line_str)
     assert(len(line_list) == 16 or len(line_list) == 20)
     if (len(line_list)) == 16:
         se = (line_list[1] == "folio_ws_chg_se")
+        dir = str(line_list[3])
+        if not ((dir == 'r') or (dir == 'e')):
+            print("err")
+            raise ValueError("dir fault", dir)
         return TraceRecord( 
 #['pagewalker-1880', 'folio_ws_chg', 474.336338, 'r', 's', -2, '8a550', '7f6429a45', 'ced70731360', 'm', '0', '-1', '60', 437, 0, 0]
             process=str(line_list[0]), 
             se=se, 
             timestamp=(float)(line_list[2]), 
-            dir=str(line_list[3]), 
+            dir=dir, 
             swap_level=str(line_list[4]), 
             left = int(line_list[5]), 
             entry = int(str(line_list[6]), 16), 
@@ -194,15 +210,19 @@ def load_str_record(line_str):
             ref = int(line_list[14]),
             tier = int(line_list[15]),
             se_hist = None,
-            se_ts = None
+            se_memcg = None
         )
     elif len(line_list) == 20:
         se = (line_list[1] == "folio_ws_chg_se")
+        dir = str(line_list[3])
+        if not ((dir == 'r') or (dir == 'e')):
+            print("err")
+            raise ValueError("dir fault", dir)
         return TraceRecord( 
             process=str(line_list[0]), 
             se=se, 
             timestamp=(float)(line_list[2]), 
-            dir=str(line_list[3]), 
+            dir=dir, 
             swap_level=str(line_list[4]), 
             left = int(line_list[5]), 
             entry = int(str(line_list[6]), 16), 
@@ -215,7 +235,7 @@ def load_str_record(line_str):
             minseq = int(line_list[13]),
             ref = int(line_list[14]),
             tier = int(line_list[15]),
-            se_ts = int(line_list[16]),
+            se_memcg = int(line_list[16]),
             se_hist = [int(line_list[17]),int(line_list[18]),int(line_list[19])]
         )
     else:
@@ -241,17 +261,20 @@ if __name__ == '__main__':
         ref = 1,
         tier = 2,
         se_hist = [234, 345, 567],
-        se_ts = 123
+        se_memcg = 123,
     )
+    m['label'] = 0.1243
+    m['fake_left'] = 0.5
 
     print(
-        m["process"], 
+        m["process"], #pid
         m["se"], 
         m["timestamp"], 
-        m['dir'], 
-        m['swap_level'], 
-        m['left'], 
-        m['entry'],
+        m['dir'], # in or out
+        m['swap_level'], # fast or slow
+        m['left'], # space left in swap_level device
+        m['fake_left'], #0-100% float
+        m['entry'], # page id
         m['va'], 
         m['folio'], 
         m['swapprio_b'],
@@ -262,5 +285,7 @@ if __name__ == '__main__':
         m['ref'],
         m['tier'],
         m['se_hist'],
-        m['se_ts']
+        m['se_memcg'],
+        m['label'],
+        m['fake_left']
     )
