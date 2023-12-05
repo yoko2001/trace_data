@@ -25,7 +25,7 @@ class TraceRecord(object):
         swap_level, left, entry, va, 
         folio, swapprio_b, readahead_b, gen,
         memcg_id, minseq, ref, tier, se_hist, 
-        se_memcg, label = 0.0, fake_left=0.0
+        se_memcg, label = -1.0, fake_left=0.0
     ):
         self.process = process
         self.se = se
@@ -187,12 +187,16 @@ def load_str_record(line_str):
     assert(len(line_list) == 16 or len(line_list) == 20)
     if (len(line_list)) == 16:
         se = (line_list[1] == "folio_ws_chg_se")
+        dir = str(line_list[3])
+        if not ((dir == 'r') or (dir == 'e')):
+            print("err")
+            raise ValueError("dir fault", dir)
         return TraceRecord( 
 #['pagewalker-1880', 'folio_ws_chg', 474.336338, 'r', 's', -2, '8a550', '7f6429a45', 'ced70731360', 'm', '0', '-1', '60', 437, 0, 0]
             process=str(line_list[0]), 
             se=se, 
             timestamp=(float)(line_list[2]), 
-            dir=str(line_list[3]), 
+            dir=dir, 
             swap_level=str(line_list[4]), 
             left = int(line_list[5]), 
             entry = int(str(line_list[6]), 16), 
@@ -210,11 +214,15 @@ def load_str_record(line_str):
         )
     elif len(line_list) == 20:
         se = (line_list[1] == "folio_ws_chg_se")
+        dir = str(line_list[3])
+        if not ((dir == 'r') or (dir == 'e')):
+            print("err")
+            raise ValueError("dir fault", dir)
         return TraceRecord( 
             process=str(line_list[0]), 
             se=se, 
             timestamp=(float)(line_list[2]), 
-            dir=str(line_list[3]), 
+            dir=dir, 
             swap_level=str(line_list[4]), 
             left = int(line_list[5]), 
             entry = int(str(line_list[6]), 16), 

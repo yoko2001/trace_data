@@ -167,23 +167,25 @@ class global_mapping(object):
 
     def finish_load_result(self):
         for i, (lable_sum, lable_num) in enumerate(zip(self.label, self.result_num)):
-            if lable_num > 0:
+            if lable_num > 3:
                 self.label[i] = lable_sum / lable_num
             else:
                 self.label[i] = -1
-            if not self.label[i] < 0.3:
+            if not self.label[i] < 0.01:
                 r_id = self.index2record[i]
                 self.raw_records[r_id]['label'] = self.label[i]
+
         self.record_dump()
         
     def record_dump(self):
+        global result
         record_label_index = 0
         _results = []
 
         for record_with_label in self.raw_records:
             if record_with_label == None:
                 continue
-            if not record['dir'] == 'e':
+            if not record_with_label['dir'] == 'e':
                 continue
             
             #this is a evict point
@@ -192,13 +194,14 @@ class global_mapping(object):
                 continue
             assert(len(hist) == 3)
             label = record_with_label['label']
+            if label < 0.0:
+                continue
             minseq = record_with_label['minseq']
             memcg_id = record_with_label['memcg_id']
             map(lambda x: minseq-x, hist)
             single_result = [record_label_index, label, memcg_id, hist] # [id ,lable, dist1, dist2, dist3]
             #我们无法使用left，这是由于left在实际运行时无法使用
             #但是我们通过不同的input_flow控制已经获得了资源量不同的时候的情况
-            print(single_result)
             _results.append(single_result)
             record_label_index += 1
 
@@ -311,8 +314,8 @@ class state(object):
         
         #set all costs
         self.vertex_cost[str(self.src_index)] = self.input_flow
-        self.vertex_cost[str(self.fake_src_index)] = self.no_start_num
-        total_input = self.input_flow + self.no_start_num
+        self.vertex_cost[str(self.fake_src_index)] = min(self.no_start_num, self.maxcache - self.input_flow - 5) # 5 is for safty 
+        total_input = self.vertex_cost[str(self.src_index)] + self.vertex_cost[str(self.fake_src_index)]
         #the comsume of fake_tar can be a little bit less than 100%
         #we can give 0-20% loss on that
         self.vertex_cost[str(self.fake_tar_index)] = -self.no_end_num
@@ -321,8 +324,9 @@ class state(object):
 
 global_results = []
 global_graph = None
-
+global_pbar = None
 def run_a_sample(max_edge, maxcache, lock, seed):
+    global_pbar.update()
     global global_results
     #generate a new sample and run it
     mapping = global_graph
@@ -369,7 +373,7 @@ def run_a_sample(max_edge, maxcache, lock, seed):
     if status != smcf.OPTIMAL:
         print("There was an issue with the min cost flow input.")
         print(f"Status: {status}")
-        return
+        return None
     solution_flows = smcf.flows(all_arcs)
     costs = solution_flows * unit_costs
     result = []
@@ -385,12 +389,14 @@ def run_a_sample(max_edge, maxcache, lock, seed):
             result.append((ori_from, 0))
     return result
 
+from tqdm import tqdm
+
 if __name__ == "__main__":
     max_cache_choises = [1000, 2000, 4000]
     small = False # True
     if len(sys.argv) > 1:
         if not len(sys.argv) == 3:
-            raise NotImplementedError("can only have one argument")
+            raise NotImplementedError("can only have one argument", sys.argv)
         src_file_name = sys.argv[-2]
         max_cache = int(sys.argv[-1])
         if not src_file_name.endswith(".txt"):
@@ -441,17 +447,27 @@ if __name__ == "__main__":
     process_pool = None
     pfunc = None
     if small:
-        runs_seeds = np.arange(5).tolist()
+        total_run = 5
+    else:
+        total_run = 500
+    pbar = tqdm(total=total_run)
+    global_pbar = pbar
+    global_pbar.set_description('RUN')
+
+    if small:
+        runs_seeds = np.arange(total_run).tolist()
         process_pool = multiprocessing.Pool(processes=5)
         # 定义偏函数，并传入固定参数
         pfunc = partial(run_a_sample, 2000, 50, lock)
-
     else:
-        runs_seeds = np.arange(50).tolist()
+        total_run = 500
+        runs_seeds = np.arange(total_run).tolist()
+
+        for i in range(0, len(runs_seeds)):
+            runs_seeds[i] += random.randint(12345,67890)
         process_pool = multiprocessing.Pool(processes=30)
         # 定义偏函数，并传入固定参数
-        pfunc = partial(run_a_sample, 200000, 250, lock)
-
+        pfunc = partial(run_a_sample, 150000, 250, lock)
 
     # 执行map，传入seeds
     results = process_pool.map(pfunc, runs_seeds)
@@ -459,7 +475,8 @@ if __name__ == "__main__":
     assert(len(results) == len(runs_seeds))
     
     for result in results:
-        mapping.load_result(result)
+        if result:
+            mapping.load_result(result)
     mapping.finish_load_result()
 
     with open(result_file, 'wb') as f:
