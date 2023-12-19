@@ -2,7 +2,6 @@ import numpy as np
 from ortools.graph.python import min_cost_flow
 from trace_record import TraceRecord
 from load_parsed import Record_Provider
-import joblib
 import time
 import sys
 import os
@@ -164,7 +163,6 @@ if __name__ == "__main__":
     status = smcf.solve()
     time_end = time.time()
     print("耗时："+str(time_end-time_begin)+"s")
-    joblib.dump(status, 'result_status.pkl')
 
     if status != smcf.OPTIMAL:
         print("There was an issue with the min cost flow input.")

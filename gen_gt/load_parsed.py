@@ -20,6 +20,8 @@ def scan_parsed_files(parsed_path):
         filepath = os.path.join(target,filename)
         if filepath.endswith(".parsed"):
             allfiles.append(filepath)
+    if len(allfiles) == 0:
+        raise IndexError("given target {} has no usable".format(target))
     return allfiles
 
 def load_single_file(filename):

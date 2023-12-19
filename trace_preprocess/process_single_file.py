@@ -196,6 +196,8 @@ def parse_line(linestr):
 
     
     entry , linestr = parse_entry(linestr)
+    if entry.startswith("fffffffffff") and entry.endswith("ffffffffff"):
+        return None
     ret_list.append(entry)
 
     va , linestr = parse_va(linestr)
